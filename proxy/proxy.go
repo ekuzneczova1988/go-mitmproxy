@@ -2,8 +2,11 @@ package proxy
 
 import (
 	"bytes"
+	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/CUCyber/ja3transport"
 	"github.com/lqqyt2423/go-mitmproxy/addon"
@@ -35,7 +38,23 @@ func NewProxy(opts *Options) (*Proxy, error) {
 	}
 	var clientJA3 *ja3transport.JA3Client
 	clientJA3, _ = ja3transport.New(ja3transport.SafariAuto)
-
+	clientJA3.Client.Transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ForceAttemptHTTP2:     false, // disable http2
+		DisableCompression:    true,  // To get the original response from the server, set Transport.DisableCompression to true.
+		TLSClientConfig: &tls.Config{
+			KeyLogWriter: GetTlsKeyLogWriter(),
+		},
+	}
 	//resp, err := clientJA3.Do(req)
 	proxy.Client = clientJA3.Client
 	// proxy.Client = &http.Client{
